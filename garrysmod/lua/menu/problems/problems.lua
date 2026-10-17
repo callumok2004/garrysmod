@@ -43,6 +43,12 @@ local function CountProblem( severity )
 
 end
 
+function GetProblemCount()
+
+	return ProblemsCount, ProblemSeverity
+
+end
+
 local function RecountProblems()
 
 	ProblemsCount = 0

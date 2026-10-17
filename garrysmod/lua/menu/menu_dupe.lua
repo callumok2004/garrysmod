@@ -28,8 +28,7 @@ function ws_dupe:FetchLocal( offset, perpage )
 		results			= saves
 	}
 
-	local json = util.TableToJSON( results, false )
-	pnlMainMenu:Call( "dupe.ReceiveLocal( " .. json .. " )" )
+	self:Send( "ReceiveLocal", results )
 
 end
 

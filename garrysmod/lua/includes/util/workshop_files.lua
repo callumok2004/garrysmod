@@ -182,9 +182,31 @@ function WorkshopFileBase( namespace, requiredtags )
 
 	end
 
+	--
+	-- Sends results to the vgui menu's receiver if it has one, otherwise to the HTML
+	--
+	function ret:Send( func, ... )
+
+		if ( self.Receiver ) then
+			self.Receiver[ func ]( self.Receiver, ... )
+			return
+		end
+
+		if ( !IsValid( self.HTML ) ) then return end
+
+		local args = {}
+		for i = 1, select( "#", ... ) do
+			local arg = select( i, ... )
+			args[ i ] = istable( arg ) and util.TableToJSON( arg, false ) or ( "\"" .. tostring( arg ):JavascriptSafe() .. "\"" )
+		end
+
+		self.HTML:Call( namespace .. "." .. func .. "( " .. table.concat( args, ", " ) .. " )" )
+
+	end
+
 	function ret:RetrieveUserName( steamid, func )
 		steamworks.RequestPlayerInfo( steamid, function( name )
-			self.HTML:Call( namespace .. ".ReceiveUserName( \"" .. steamid:JavascriptSafe() .. "\", \"" .. name:JavascriptSafe() .. "\" )" )
+			self:Send( "ReceiveUserName", steamid, name )
 			if ( func ) then func( name ) end
 		end )
 	end
@@ -199,22 +221,19 @@ function WorkshopFileBase( namespace, requiredtags )
 		--
 		-- Send the file index..
 		--
-		local json = util.TableToJSON( results, false )
-		self.HTML:Call( namespace .. ".ReceiveIndex( " .. json .. " )" )
+		self:Send( "ReceiveIndex", results )
 
 		--
 		-- Request info on each file..
 		--
 		for k, v in pairs( results.results ) do
 
-			v = v:JavascriptSafe()
-
 			--
 			-- Got it cached?
 			--
 			if ( PreviewCache[ v ] ) then
 
-				self.HTML:Call( namespace .. ".ReceiveImage( \"" .. v .. "\", \"" .. PreviewCache[ v ] .. "\" )" )
+				self:Send( "ReceiveImage", v, PreviewCache[ v ] )
 
 			end
 
@@ -231,25 +250,22 @@ function WorkshopFileBase( namespace, requiredtags )
 				extra.description = "Non workshop .gma addon. (" .. extra.file .. ")"
 				extra.floating = true
 
-				local jsonExtra = util.TableToJSON( extra, false )
-
-				self.HTML:Call( namespace .. ".ReceiveFileInfo( \"" .. v .. "\", " .. jsonExtra .. " )" )
-				self.HTML:Call( namespace .. ".ReceiveImage( \"" .. v .. "\", \"html/img/localaddon.png\" )" )
+				self:Send( "ReceiveFileInfo", v, extra )
+				self:Send( "ReceiveImage", v, "html/img/localaddon.png" )
 
 				-- Do not try to get votes for this one
 				continue
 
 			elseif ( InfoCache[ v ] ) then
 
-				self.HTML:Call( namespace .. ".ReceiveFileInfo( \"" .. v .. "\", " .. InfoCache[ v ] .. " )" )
+				self:Send( "ReceiveFileInfo", v, InfoCache[ v ] )
 
 				if ( MENU_DLL ) then
 					-- This could've changed..
 					steamworks.FileUserInfo( v, function( info )
 						if ( info.error ) then return end
 
-						local localUI = util.TableToJSON( info, false )
-						self.HTML:Call( namespace .. ".ReceiveFileUserInfo( \"" .. v .. "\", " .. localUI .. " )" )
+						self:Send( "ReceiveFileUserInfo", v, info )
 					end )
 				end
 
@@ -264,8 +280,7 @@ function WorkshopFileBase( namespace, requiredtags )
 							if ( tonumber( v ) == tonumber( t.wsid ) ) then title = t.title break end
 						end
 
-						local jsonErr = util.TableToJSON( { title = title, description = "Failed to get addon info, error code " .. ( result && result.error || "unknown" ) }, false )
-						self.HTML:Call( namespace .. ".ReceiveFileInfo( \"" .. v .. "\", " .. jsonErr .. " )" )
+						self:Send( "ReceiveFileInfo", v, { title = title, description = "Failed to get addon info, error code " .. ( result && result.error || "unknown" ) } )
 						return
 					end
 
@@ -278,15 +293,11 @@ function WorkshopFileBase( namespace, requiredtags )
 					if ( result.owner && ( !result.ownername || result.ownername == "" || result.ownername == "[unknown]" ) ) then
 						self:RetrieveUserName( result.owner, function( name )
 							result.ownername = name
-
-							local jsonUN = util.TableToJSON( result, false )
-							InfoCache[ v ] = jsonUN
 						end )
 					end
 
-					local jsonFI = util.TableToJSON( result, false )
-					InfoCache[ v ] = jsonFI
-					self.HTML:Call( namespace .. ".ReceiveFileInfo( \"" .. v .. "\", " .. jsonFI .. " )" )
+					InfoCache[ v ] = result
+					self:Send( "ReceiveFileInfo", v, result )
 
 					--
 					-- Now we have the preview id - get the preview image!
@@ -298,8 +309,8 @@ function WorkshopFileBase( namespace, requiredtags )
 							-- Download failed
 							if ( !name ) then return end
 
-							PreviewCache[ v ] = name:JavascriptSafe()
-							self.HTML:Call( namespace .. ".ReceiveImage( \"" .. v .. "\", \"" .. PreviewCache[ v ] .. "\" )" )
+							PreviewCache[ v ] = name
+							self:Send( "ReceiveImage", v, name )
 
 						end )
 
@@ -309,8 +320,7 @@ function WorkshopFileBase( namespace, requiredtags )
 						steamworks.FileUserInfo( v, function( info )
 							if ( info.error ) then return end
 
-							local localUI = util.TableToJSON( info, false )
-							self.HTML:Call( namespace .. ".ReceiveFileUserInfo( \"" .. v .. "\", " .. localUI .. " )" )
+							self:Send( "ReceiveFileUserInfo", v, info )
 						end )
 					end
 

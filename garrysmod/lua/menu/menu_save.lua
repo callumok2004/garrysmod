@@ -28,8 +28,7 @@ function ws_save:FetchLocal( offset, perpage )
 		results			= saves
 	}
 
-	local json = util.TableToJSON( results, false )
-	pnlMainMenu:Call( "save.ReceiveLocal( " .. json .. " )" )
+	self:Send( "ReceiveLocal", results )
 
 end
 

@@ -28,8 +28,7 @@ function demo:FetchLocal( offset, perpage )
 		results			= saves
 	}
 
-	local json = util.TableToJSON( results, false )
-	pnlMainMenu:Call( "demo.ReceiveLocal( " .. json .. " )" )
+	self:Send( "ReceiveLocal", results )
 
 end
 

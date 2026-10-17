@@ -305,6 +305,8 @@ function UpdateMapList()
 	local mapList = GetMapList()
 	if ( !mapList ) then return end
 
+	if ( pnlMainMenu.OnMapListChanged ) then pnlMainMenu:OnMapListChanged() return end
+
 	local json = util.TableToJSON( mapList )
 	if ( !json ) then return end
 
@@ -437,6 +439,10 @@ hook.Add( "GameContentChanged", "RefreshMaps", DelayedRefreshMaps )
 -- Nice maplist accessor instead of a global table
 function GetMapList()
 	return MapList
+end
+
+function GetAddonMapList()
+	return AddonMaps
 end
 
 function ToggleFavourite( map )

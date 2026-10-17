@@ -257,6 +257,8 @@ function UpdateServerSettings()
 
 	end
 
+	if ( pnlMainMenu.OnServerSettings ) then pnlMainMenu:OnServerSettings( array ) return end
+
 	local json = util.TableToJSON( array )
 	pnlMainMenu:Call( "UpdateServerSettings(" .. json .. ")" )
 
@@ -268,6 +270,8 @@ end
 function GetPlayerList( serverip )
 
 	serverlist.PlayerList( serverip, function( tbl )
+
+		if ( pnlMainMenu.OnPlayerList ) then pnlMainMenu:OnPlayerList( serverip, tbl ) return end
 
 		local json = util.TableToJSON( tbl )
 		pnlMainMenu:Call( "SetPlayerList( '" .. serverip:JavascriptSafe() .. "', " .. json .. ")" )
@@ -313,6 +317,8 @@ function LoadNewsList()
 
 	local json = util.TableToJSON( NewsList )
 	local bHide = cookie.GetString( "hide_newslist", "false" ) == "true"
+
+	if ( pnlMainMenu.SetNewsList ) then pnlMainMenu:SetNewsList( NewsList, bHide ) return end
 
 	pnlMainMenu:Call( "UpdateNewsList(" .. json .. ", " .. tostring( bHide ) .. " )" )
 end
@@ -378,6 +384,10 @@ local ShouldStop = {}
 local function SendServer( pnlMainMenu, category, id,
 	ping, name, desc, map, players, maxplayers, botplayers, pass, lastplayed, address, gm, workshopid, isAnon, netVersion, luaVersion, loc, gmcat )
 
+	if ( pnlMainMenu.OnAddServer ) then
+		return pnlMainMenu:OnAddServer( category, id, ping, name, desc, map, players, maxplayers, botplayers, pass, lastplayed, address, gm, workshopid, isAnon, netVersion, loc, gmcat )
+	end
+
 	name = string.JavascriptSafe( name )
 	desc = string.JavascriptSafe( desc )
 	map = string.JavascriptSafe( map )
@@ -442,6 +452,7 @@ function GetServers( category, id )
 		end,
 
 		Finished = function()
+			if ( pnlMainMenu.OnFinishedServers ) then pnlMainMenu:OnFinishedServers( category ) end
 			pnlMainMenu:Call( "FinishedServers( '" .. category:JavascriptSafe() .. "' )" )
 			Servers[ category ] = {}
 		end,
@@ -456,6 +467,7 @@ function GetServers( category, id )
 end
 
 function DoStopServers( category )
+	if ( pnlMainMenu.OnFinishedServers ) then pnlMainMenu:OnFinishedServers( category ) end
 	pnlMainMenu:Call( "FinishedServers( '" .. category:JavascriptSafe() .. "' )" )
 	ShouldStop[ category ] = true
 	Servers[ category ] = {}
@@ -466,6 +478,10 @@ function PingServer( srvAddress )
 	serverlist.PingServer( srvAddress, function( ping, name, desc, map, players, maxplayers, botplayers, pass, lastplayed, address, gm, workshopid, isAnon, netVersion, luaVersion, loc, gmcat )
 
 		if ( !name ) then return end
+
+		if ( pnlMainMenu.OnUpdateServer ) then
+			return pnlMainMenu:OnUpdateServer( address, ping, name, map, players, maxplayers, botplayers, pass )
+		end
 
 		name = string.JavascriptSafe( name )
 		map = string.JavascriptSafe( map )
@@ -506,10 +522,12 @@ function FindServersAtAddress( inputStr )
 					map = "", gamemode = ""
 				} )
 			else
-				name = string.JavascriptSafe( name )
-				map = string.JavascriptSafe( map )
-				address = string.JavascriptSafe( address )
-				gm = string.JavascriptSafe( gm )
+				if ( !pnlMainMenu.OnFoundServers ) then
+					name = string.JavascriptSafe( name )
+					map = string.JavascriptSafe( map )
+					address = string.JavascriptSafe( address )
+					gm = string.JavascriptSafe( gm )
+				end
 
 				table.insert( output, {
 					address = address,
@@ -523,6 +541,8 @@ function FindServersAtAddress( inputStr )
 					maxplayers = maxplayers,
 				} )
 			end
+
+			if ( pnlMainMenu.OnFoundServers ) then pnlMainMenu:OnFoundServers( output ) return end
 
 			//if ( #output == #addresses ) then
 				local json = util.TableToJSON( output )
@@ -614,6 +634,8 @@ function ImportAddonPreset( id, json )
 	steamworks.FileInfo( id, function( fileInfo )
 
 		if ( !fileInfo.children or #fileInfo.children < 1 ) then
+			if ( pnlMainMenu.OnImportPresetFailed ) then pnlMainMenu:OnImportPresetFailed() return end
+
 			pnlMainMenu:Call( "OnImportPresetFailed()" )
 			return
 		end
@@ -638,6 +660,8 @@ function DeleteAddonPreset( name )
 end
 function ListAddonPresets()
 	EnsurePresetsLoaded()
+
+	if ( pnlMainMenu.OnAddonPresets ) then pnlMainMenu:OnAddonPresets( presetCache ) return end
 
 	pnlMainMenu:Call( "OnReceivePresetList(" .. util.TableToJSON( presetCache ) .. ")" )
 end
@@ -672,13 +696,14 @@ hook.Add( "LoadGModSaveFailed", "HandleUGCLoadFailure", function( str, wsid )
 	gui.ActivateGameUI()
 end )
 
+include( "mainmenu/mainmenu.lua" )
+
 --
 -- Initialize
 --
 timer.Simple( 0, function()
 
-	pnlMainMenu = vgui.Create( "MainMenuPanel" )
-	pnlMainMenu:Call( "UpdateVersion( '" .. VERSIONSTR:JavascriptSafe() .. "', '" .. NETVERSIONSTR:JavascriptSafe() .. "', '" .. BRANCH:JavascriptSafe() .. "' )" )
+	MainMenu.Create()
 
 	local lang = GetConVarString( "gmod_language" )
 	LanguageChanged( lang )
